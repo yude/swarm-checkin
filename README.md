@@ -21,7 +21,12 @@ https://app.foursquare.com/share/checkin/{checkinId}
 ### Foursquare API 設定
 
 1. [Foursquare Developer Portal](https://developer.foursquare.com/) でアプリを登録
-2. リダイレクト URI に `http://localhost:5173/callback`（開発）と本番の URL を追加
+2. Redirect URI(s) に使う環境のものを全て登録（複数登録可能）:
+   - 開発: `http://localhost:5173/callback`
+   - Docker Compose: `http://localhost:8080/callback`
+   - 本番: `https://your-domain.example.com/callback`
+
+   アプリケーションはアクセス元のオリジンに自動的に合わせて `{origin}/callback` にリダイレクトします。
 3. `.env` ファイルを作成:
 
 ```bash
