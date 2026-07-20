@@ -5,6 +5,7 @@ namespace: swarm-checkin
 
 resources:
   - namespace.yaml
+  - secret.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
