@@ -1,0 +1,10 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "8080:80"
+    environment:
+      - VITE_FOURSQUARE_CLIENT_ID=${VITE_FOURSQUARE_CLIENT_ID:-}
+      - VITE_FOURSQUARE_CLIENT_SECRET=${VITE_FOURSQUARE_CLIENT_SECRET:-}
+    restart: unless-stopped
