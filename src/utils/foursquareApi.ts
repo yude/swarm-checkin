@@ -1,3 +1,5 @@
+import { resolveJapaneseMunicipality } from './municipality.ts';
+
 declare global {
   interface Window {
     __CONFIG__?: {
@@ -27,6 +29,7 @@ export interface FoursquareCheckin {
       lng: number;
       state?: string;
       country?: string;
+      cc?: string;
       city?: string;
     };
   };
@@ -106,7 +109,12 @@ export async function fetchLatestCheckin(
   if (!items || items.length === 0) {
     return null;
   }
-  return items[0];
+  const checkin: FoursquareCheckin = items[0];
+  const city = await resolveJapaneseMunicipality(checkin.venue.location);
+  if (city) {
+    checkin.venue.location.city = city;
+  }
+  return checkin;
 }
 
 export function formatCheckinText(checkin: FoursquareCheckin): string {

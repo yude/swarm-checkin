@@ -9,6 +9,19 @@ I'm at {スポット名} in {市町村}, {都道府県}
 https://app.foursquare.com/share/checkin/{checkinId}
 ```
 
+国内スポットの市区町村は、スポットの緯度・経度を使って補完します。
+Foursquare の `city` に「東京」などの広域名が入っていても、千代田区などの市区町村名を表示します。
+海外のスポットや補完に失敗した場合は、Foursquare の値を使用します。
+
+市区町村の補完には[国土地理院の逆ジオコーダー](https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress)と
+[市区町村一覧](https://maps.gsi.go.jp/js/muni.js)を利用し、一覧の名称から空白を除去して表示しています。
+スポットの座標のみを国土地理院へ送信します。各リクエストのタイムアウトは3秒です。
+同じ座標の補完結果と市区町村一覧は、ページを開いている間キャッシュします。
+
+## テスト
+
+Node.js 24 で `npm test` を実行すると、市区町村の補完と共有文の回帰テストを実行できます。
+
 ## 技術スタック
 
 - React 19 + TypeScript
