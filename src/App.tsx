@@ -1,4 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
+import Settings from './components/Settings';
+import { getMisskeyDomain, getMisskeyShareUrl } from './utils/misskey';
+import blueskyLogo from './assets/bluesky.svg';
+import misskeyLogo from './assets/misskey.svg';
 import {
   getAuthUrl,
   getToken,
@@ -11,6 +15,8 @@ import {
 } from './utils/foursquareApi';
 
 function App() {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [misskeyDomain, setMisskeyDomain] = useState(getMisskeyDomain);
   const [isLoggedIn, setIsLoggedIn] = useState(!!getToken());
   const [checkin, setCheckin] = useState<FoursquareCheckin | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,25 +84,41 @@ function App() {
   const displayText = checkin ? formatCheckinText(checkin) : '';
   const tweetUrl = checkin ? getTweetUrl(displayText) : '';
   const blueskyUrl = checkin ? getBlueskyUrl(displayText) : '';
+  const misskeyUrl = checkin ? getMisskeyShareUrl(displayText, misskeyDomain) : '';
+  const checkinDate = checkin ? new Date(checkin.createdAt * 1000) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-lg mx-auto px-4 py-4 flex flex-wrap gap-3 items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">Swarm チェックイン共有</h1>
-          {isLoggedIn && (
+          <div className="flex items-center gap-4">
             <button
-              onClick={handleLogout}
+              onClick={() => setIsSettingsOpen(true)}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
-              ログアウト
+              設定
             </button>
-          )}
+            {isLoggedIn && (
+              <button
+                onClick={handleLogout}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                ログアウト
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-12">
-        {!isLoggedIn ? (
+        {isSettingsOpen ? (
+          <Settings
+            misskeyDomain={misskeyDomain}
+            onSave={domain => { setMisskeyDomain(domain); setIsSettingsOpen(false); }}
+            onCancel={() => setIsSettingsOpen(false)}
+          />
+        ) : !isLoggedIn ? (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,7 +174,22 @@ function App() {
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
-                <span className="text-sm text-gray-500">最新のチェックイン</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">最新のチェックイン</span>
+                    {checkin.isMayor && (
+                      <span role="img" aria-label="メイヤー" title="このスポットのメイヤーです">👑</span>
+                    )}
+                  </div>
+                  {checkinDate && !Number.isNaN(checkinDate.getTime()) && (
+                    <time dateTime={checkinDate.toISOString()} className="block text-sm text-gray-500 mt-1">
+                      {new Intl.DateTimeFormat(undefined, {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+                      }).format(checkinDate)}
+                    </time>
+                  )}
+                </div>
               </div>
 
               <p className="text-gray-900 text-lg leading-relaxed whitespace-pre-wrap break-all">
@@ -209,7 +246,18 @@ function App() {
                 rel="noopener noreferrer"
                 className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
               >
+                <img src={blueskyLogo} alt="" aria-hidden="true" className="w-5 h-5 shrink-0 object-contain" />
                 Bluesky でポスト
+              </a>
+              <a
+                href={misskeyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`投稿先: ${misskeyDomain}`}
+                className="sm:col-span-2 px-6 py-3 bg-lime-700 text-white rounded-xl hover:bg-lime-800 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <img src={misskeyLogo} alt="" aria-hidden="true" className="w-5 h-5 shrink-0 object-contain" />
+                Misskey に投稿
               </a>
             </div>
 

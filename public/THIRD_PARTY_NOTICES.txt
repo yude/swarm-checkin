@@ -1,0 +1,16 @@
+Bluesky butterfly logo
+Copyright: Bluesky Social PBC
+Source: https://bsky.social/about/support/icons
+Asset: https://bsky.social/about/brand-assets/butterfly/bluesky_media_kit_logo_transparent_3.svg
+Use is subject to the Bluesky Trademark Policy and Brand Guidelines:
+https://bsky.social/about/support/trademarks
+https://bsky.social/about/support/branding
+The logo is included without modifications.
+
+Misskey "mi" logo
+Attribution: misskey-dev / Misskey assets contributors
+Source: https://github.com/misskey-dev/assets/blob/main/public/mi.svg
+License: Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+https://creativecommons.org/licenses/by-sa/4.0/
+https://github.com/misskey-dev/assets/blob/main/README.md
+The logo is included without modifications.

@@ -23,6 +23,7 @@ export interface FoursquareCheckin {
   municipalityStatus?: 'resolved' | 'unavailable' | 'not-applicable';
   id: string;
   createdAt: number;
+  isMayor?: boolean;
   venue: {
     name: string;
     location: {
