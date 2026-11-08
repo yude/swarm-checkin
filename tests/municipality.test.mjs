@@ -4,13 +4,6 @@ import { afterEach, test } from 'node:test';
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 
-const names = `
-GSI.MUNI_ARRAY = {};
-GSI.MUNI_ARRAY["13101"] = '13,東京都,13101,千代田区';
-GSI.MUNI_ARRAY["1102"] = '1,北海道,1102,札幌市　北区';
-GSI.MUNI_ARRAY["13303"] = '13,東京都,13303,瑞穂町';
-GSI.MUNI_ARRAY["47353"] = '47,沖縄県,47353,渡嘉敷村';
-`;
 let moduleId = 0;
 async function resolver() {
   return (await import(`../src/utils/municipality.ts?test=${moduleId++}`)).resolveJapaneseMunicipality;
@@ -19,6 +12,7 @@ async function resolver() {
 for (const [code, expected] of [
   ['13101', '千代田区'],
   ['01102', '札幌市北区'],
+  ['1102', '札幌市北区'],
   ['13303', '瑞穂町'],
   ['47353', '渡嘉敷村'],
 ]) {
@@ -26,7 +20,7 @@ for (const [code, expected] of [
     const resolve = await resolver();
     globalThis.fetch = async (url, options) => {
       assert.ok(options.signal instanceof AbortSignal);
-      if (url.endsWith('/muni.js')) return new Response(names);
+      assert.ok(!url.endsWith('/muni.js'));
       const params = new URL(url).searchParams;
       assert.equal(params.get('lat'), '35.681236');
       assert.equal(params.get('lon'), '139.767125');
@@ -36,15 +30,11 @@ for (const [code, expected] of [
   });
 }
 
-test('同じ座標の結果と市区町村一覧をキャッシュする', async () => {
+test('市区町村一覧の追加通信なしで同じ座標の結果をキャッシュする', async () => {
   const resolve = await resolver();
   let reverseCalls = 0;
-  let namesCalls = 0;
   globalThis.fetch = async (url) => {
-    if (url.endsWith('/muni.js')) {
-      namesCalls++;
-      return new Response(names);
-    }
+    assert.ok(!url.endsWith('/muni.js'));
     reverseCalls++;
     return Response.json({ results: { muniCd: '13101' } });
   };
@@ -53,7 +43,6 @@ test('同じ座標の結果と市区町村一覧をキャッシュする', async
   assert.equal(await resolve(location), '千代田区');
   assert.equal(await resolve({ ...location, lat: 35.69 }), '千代田区');
   assert.equal(reverseCalls, 2);
-  assert.equal(namesCalls, 1);
 });
 
 test('海外・不正な座標は問い合わせない', async () => {
@@ -80,8 +69,7 @@ for (const [label, response] of [
 ]) {
   test(`${label} は補完しない`, async () => {
     const resolve = await resolver();
-    globalThis.fetch = async (url) => url.endsWith('/muni.js')
-      ? new Response(names) : Response.json(response);
+    globalThis.fetch = async () => Response.json(response);
     assert.equal(await resolve({ lat: 35.68, lng: 139.76 }), null);
   });
 }
@@ -98,29 +86,52 @@ for (const [label, response] of [
   });
 }
 
-test('市区町村一覧の失敗・形式変更後、次の取得で再試行する', async () => {
+for (const [label, fail] of [
+  ['HTTP 503', () => new Response('', { status: 503 })],
+  ['HTTP 429', () => new Response('', { status: 429 })],
+  ['ネットワーク障害', () => { throw new TypeError('Failed to fetch'); }],
+  ['タイムアウト', () => { throw new DOMException('Timed out', 'TimeoutError'); }],
+]) {
+  test(`${label} の次の試行で市区町村を取得する`, async () => {
+    const resolve = await resolver();
+    let calls = 0;
+    globalThis.fetch = async () => ++calls === 1
+      ? fail() : Response.json({ results: { muniCd: '13101' } });
+    assert.equal(await resolve({ lat: 35.68, lng: 139.76, cc: 'JP' }), '千代田区');
+    assert.equal(calls, 2);
+  });
+}
+
+test('再試行回数は有限で、失敗後も次の取得で復旧する', async () => {
   const resolve = await resolver();
-  let namesCalls = 0;
-  globalThis.fetch = async (url) => {
-    if (!url.endsWith('/muni.js')) return Response.json({ results: { muniCd: '13101' } });
-    namesCalls++;
-    if (namesCalls === 1) return new Response('', { status: 503 });
-    if (namesCalls === 2) return new Response('changed format');
-    return new Response(names);
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return new Response('', { status: 503 });
   };
-  const location = { lat: 35.68, lng: 139.76 };
+  const location = { lat: 35.68, lng: 139.76, cc: 'JP' };
   assert.equal(await resolve(location), null);
-  assert.equal(await resolve(location), null);
+  assert.equal(calls, 2);
+  globalThis.fetch = async () => Response.json({ results: { muniCd: '13101' } });
   assert.equal(await resolve(location), '千代田区');
-  assert.equal(namesCalls, 3);
 });
 
-test('最新チェックインの取得から共有文・X 投稿まで市区町村を反映する', async () => {
+test('HTTP 400 や該当なしは再試行しない', async () => {
+  for (const response of [new Response('', { status: 400 }), Response.json({})]) {
+    const resolve = await resolver();
+    let calls = 0;
+    globalThis.fetch = async () => { calls++; return response; };
+    assert.equal(await resolve({ lat: 35.68, lng: 139.76 }), null);
+    assert.equal(calls, 1);
+  }
+});
+
+test('最新チェックインの取得から共有文・X・Bluesky 投稿まで市区町村を反映する', async () => {
   globalThis.window = {
     __CONFIG__: { foursquareClientId: 'test-id', foursquareClientSecret: 'test-secret' },
     location: { origin: 'https://example.com' },
   };
-  const { fetchLatestCheckin, formatCheckinText, getTweetUrl } = await import('../src/utils/foursquareApi.ts');
+  const { fetchLatestCheckin, formatCheckinText, getTweetUrl, getBlueskyUrl } = await import('../src/utils/foursquareApi.ts');
   const checkin = {
     id: 'test-checkin', createdAt: 0,
     venue: { name: '東京駅', location: { lat: 35.681236, lng: 139.767125, cc: 'JP', city: '東京', state: '東京都' } },
@@ -133,17 +144,24 @@ test('最新チェックインの取得から共有文・X 投稿まで市区町
     // Foursquare の認証情報を外部の補完先へ送らない。
     assert.ok(!url.includes('private-token'));
     if (reverseFails) return new Response('', { status: 503 });
-    if (url.endsWith('/muni.js')) return new Response(names);
+    assert.ok(!url.endsWith('/muni.js'));
     return Response.json({ results: { muniCd: '13101' } });
   };
   const result = await fetchLatestCheckin('private-token');
+  assert.equal(result.municipalityStatus, 'resolved');
   const text = formatCheckinText(result);
   assert.equal(text, "I'm at 東京駅 in 千代田区, 東京都 https://app.foursquare.com/share/checkin/test-checkin");
   assert.equal(new URL(getTweetUrl(text)).searchParams.get('text'), text);
+  const bluesky = new URL(getBlueskyUrl(text));
+  assert.equal(bluesky.origin + bluesky.pathname, 'https://bsky.app/intent/compose');
+  assert.equal(bluesky.searchParams.get('text'), text);
+  const specialText = text + ' & #渋谷 + ☕\n日本語';
+  assert.equal(new URL(getBlueskyUrl(specialText)).searchParams.get('text'), specialText);
 
   reverseFails = true;
   checkin.venue.location.lat = 35.681;
   const fallback = await fetchLatestCheckin('private-token');
+  assert.equal(fallback.municipalityStatus, 'unavailable');
   assert.equal(fallback.venue.location.city, '東京');
   assert.equal(fallback.venue.location.state, '東京都');
 });

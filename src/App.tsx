@@ -6,6 +6,7 @@ import {
   fetchLatestCheckin,
   formatCheckinText,
   getTweetUrl,
+  getBlueskyUrl,
   type FoursquareCheckin,
 } from './utils/foursquareApi';
 
@@ -76,6 +77,7 @@ function App() {
 
   const displayText = checkin ? formatCheckinText(checkin) : '';
   const tweetUrl = checkin ? getTweetUrl(displayText) : '';
+  const blueskyUrl = checkin ? getBlueskyUrl(displayText) : '';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-pink-50">
@@ -158,14 +160,21 @@ function App() {
               </p>
             </div>
 
+            {checkin.municipalityStatus === 'unavailable' && (
+              <p role="status" className="text-amber-800 text-sm">
+                市区町村を補完できなかったため、Foursquare の地域名を表示しています。
+                「最新のチェックインを再取得」で再試行できます。
+              </p>
+            )}
+
             {error && (
               <p className="text-red-600 text-sm text-center">{error}</p>
             )}
 
-            <div className="flex gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 onClick={handleCopy}
-                className="flex-1 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2"
+                className="sm:col-span-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium flex items-center justify-center gap-2"
               >
                 {copied ? (
                   <>
@@ -193,6 +202,14 @@ function App() {
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                 </svg>
                 X でポスト
+              </a>
+              <a
+                href={blueskyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                Bluesky でポスト
               </a>
             </div>
 

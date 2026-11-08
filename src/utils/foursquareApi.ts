@@ -1,4 +1,4 @@
-import { resolveJapaneseMunicipality } from './municipality.ts';
+import { isJapaneseLocation, resolveJapaneseMunicipality } from './municipality.ts';
 
 declare global {
   interface Window {
@@ -20,6 +20,7 @@ const FOURSQUARE_CLIENT_SECRET =
 const FOURSQUARE_REDIRECT_URI = window.location.origin + '/callback';
 
 export interface FoursquareCheckin {
+  municipalityStatus?: 'resolved' | 'unavailable' | 'not-applicable';
   id: string;
   createdAt: number;
   venue: {
@@ -114,6 +115,8 @@ export async function fetchLatestCheckin(
   if (city) {
     checkin.venue.location.city = city;
   }
+  checkin.municipalityStatus = city ? 'resolved'
+    : isJapaneseLocation(checkin.venue.location) ? 'unavailable' : 'not-applicable';
   return checkin;
 }
 
@@ -129,6 +132,10 @@ export function formatCheckinText(checkin: FoursquareCheckin): string {
 
 export function getTweetUrl(text: string): string {
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+}
+
+export function getBlueskyUrl(text: string): string {
+  return `https://bsky.app/intent/compose?text=${encodeURIComponent(text)}`;
 }
 
 export function saveToken(token: string): void {
